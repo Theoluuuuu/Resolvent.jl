@@ -1,8 +1,6 @@
 # Definition of the function to compute the pipe-flow resolvent matrix at a
 # specific Fourier mode (Section 3.2.3 of the report).
 
-using LinearAlgebra
-
 struct PipeResolvent{Nr}
     H::Matrix{ComplexF64}
     H_inv::Matrix{ComplexF64}
@@ -23,15 +21,12 @@ struct PipeResolvent{Nr}
         M[Nr,   :] .= 0.0
         M[2*Nr, :] .= 0.0
         M[3*Nr, :] .= 0.0
-        new{Nr}(zeros(ComplexF64, 4*Nr, 3*Nr), zeros(ComplexF64, 4*Nr, 4*Nr), M,
-                zeros(ComplexF64, Nr, Nr), Dr, Dr2,
-                Diagonal(1.0 ./ r), Diagonal(1.0 ./ (r.*r)), I(Nr))
+        new{Nr}(zeros(ComplexF64, 4*Nr, 3*Nr), zeros(ComplexF64, 4*Nr, 4*Nr), M, zeros(ComplexF64, Nr, Nr), Dr, Dr2, Diagonal(1.0 ./ r), Diagonal(1.0 ./ (r.*r)), I(Nr))
     end
 end
 Base.size(::PipeResolvent{Nr}) where {Nr} = Nr
 
-(f::PipeResolvent)(m, k, n, α, ω, U, dUdr, Re; cz=0.0, cθ=0.0) =
-    f(m, α*k, n*ω - cz*α*k - cθ*m, U, dUdr, Re)
+(f::PipeResolvent)(m, k, n, α, ω, U, dUdr, Re; cz=0.0, cθ=0.0) = f(m, α*k, n*ω - cz*α*k - cθ*m, U, dUdr, Re)
 
 function (f::PipeResolvent{Nr})(m, kz, Ω, U, dUdr, Re) where {Nr}
     # define mode-wise Laplacian
