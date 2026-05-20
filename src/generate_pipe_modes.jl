@@ -17,10 +17,9 @@ function generate_pipe_modes!(Ψ::Array{Complex{T}, 5},
                          verbose::Bool = true) where {T}
     # unpack useful variables from inputs
     N, M, Nm, Nk, Nn = size(Ψ)
-    Nr = N ÷ 3
 
     # initialise pipe resolvent operator
-    H = PipeResolvent(Nr, r, Dr, Dr2)
+    H = PipeResolvent(N÷3, r, Dr, Dr2)
 
     # loop over (m, k, n) computing response modes
     verbose && println("m: 0:$(Nm-1), k: $(-(Nk >> 1)):$(Nk >> 1), n: $(-(Nn >> 1)):$(Nn >> 1)")
