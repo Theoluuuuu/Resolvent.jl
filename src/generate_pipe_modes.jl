@@ -1,12 +1,15 @@
 # Utility method to generate pipe-flow response modes for a set of parameters.
+# `even` and `odd` are the radial derivative pairs (Dr, Dr2) mirrored at the axis
+# with even and odd parity; PipeResolvent picks the parity of each component.
+# The (m, k) = (0, 0) blocks carry no flux unless constant_flux = false.
 
 export generate_pipe_modes!, generate_pipe_modes
 
 function generate_pipe_modes!(Ψ::Array{Complex{T}, 5},
                               Re::T,
                                r::Vector{T},
-                              Dr::AbstractMatrix{T},
-                             Dr2::AbstractMatrix{T},
+                            even::NTuple{2, AbstractMatrix{T}},
+                             odd::NTuple{2, AbstractMatrix{T}},
                               ws::Vector{T},
                                α::T,
                                ω::T;
@@ -14,12 +17,13 @@ function generate_pipe_modes!(Ψ::Array{Complex{T}, 5},
                             dUdr::Vector{T} = T(-4) .* r,
                               cz::T = zero(T),
                               cθ::T = zero(T),
+                   constant_flux::Bool = true,
                          verbose::Bool = true) where {T}
     # unpack useful variables from inputs
     N, M, Nm, Nk, Nn = size(Ψ)
 
     # initialise pipe resolvent operator
-    H = PipeResolvent(N÷3, r, Dr, Dr2)
+    H = PipeResolvent(N÷3, r, ws, even, odd; constant_flux=constant_flux)
 
     # loop over (m, k, n) computing response modes
     verbose && println("m: 0:$(Nm-1), k: $(-(Nk >> 1)):$(Nk >> 1), n: $(-(Nn >> 1)):$(Nn >> 1)")
@@ -34,12 +38,13 @@ function generate_pipe_modes!(Ψ::Array{Complex{T}, 5},
     return Ψ
 end
 
-generate_pipe_modes(S, M, Re, r, Dr, Dr2, ws, α, ω, ::Type{T}=Float64;
+generate_pipe_modes(S, M, Re, r, even, odd, ws, α, ω, ::Type{T}=Float64;
                        U = T(2) .* (one(T) .- T.(r).^2),
                     dUdr = T(-4) .* T.(r),
                       cz = zero(T),
                       cθ = zero(T),
+           constant_flux = true,
                  verbose = true) where {T} =
     generate_pipe_modes!(zeros(Complex{T}, 3*S[1], M, (S[2] >> 1) + 1, S[3], S[4]),
-                         T(Re), T.(r), T.(Dr), T.(Dr2), T.(ws), T(α), T(ω);
-                         U=T.(U), dUdr=T.(dUdr), cz=T(cz), cθ=T(cθ), verbose=verbose)
+                         T(Re), T.(r), Tuple(T.(D) for D in even), Tuple(T.(D) for D in odd), T.(ws), T(α), T(ω);
+                         U=T.(U), dUdr=T.(dUdr), cz=T(cz), cθ=T(cθ), constant_flux=constant_flux, verbose=verbose)
