@@ -18,9 +18,13 @@
 # The pressure drop enters only at (m, k) = (0, 0) with `constant_flux`, as the
 # multiplier of the constant-flux condition ∫ u_z r dr = 0, which takes the last
 # row; elsewhere its row and column are those of β = 0. At (m, k) = (0, 0) the
-# pressure is fixed only up to a constant: its value at the wall is set to zero
-# in place of the continuity equation there, which no-slip and the continuity
-# equation at the other points already imply.
+# continuity equation gives u_r = 0 and the pressure enters only the radial
+# momentum equation, where it balances the radial forcing and is fixed only up
+# to a constant; it does not affect the velocity. That equation and the
+# pressure are therefore left out there, and the remaining system, the
+# azimuthal and axial momentum equations with the continuity equation, the
+# pressure drop and the flux condition, is solved; the pressure rows of H are
+# zero.
 
 struct PipeResolvent{Nr}
     H::Matrix{ComplexF64}
@@ -96,9 +100,13 @@ function (f::PipeResolvent{Nr})(m, kz, Ω, U, dUdr, Re) where {Nr}
     f.H_inv[2*Nr, :] .= 0.0; f.H_inv[2*Nr, 2*Nr] = 1.0
     f.H_inv[3*Nr, :] .= 0.0; f.H_inv[3*Nr, 3*Nr] = 1.0
 
-    # fix the pressure constant at (m, k) = (0, 0)
+    # at (m, k) = (0, 0) leave out the radial momentum equation and the pressure
     if m == 0 && kz == 0
-        f.H_inv[4*Nr, :] .= 0.0; f.H_inv[4*Nr, 4*Nr] = 1.0
+        rows = (Nr + 1):(4*Nr + 1)
+        cols = [1:(3*Nr); 4*Nr + 1]
+        f.H[(3*Nr + 1):end, :] .= 0.0
+        mul!(view(f.H, 1:(3*Nr), :), view(inv(f.H_inv[rows, cols]), 1:(3*Nr), :), view(f.M, rows, :))
+        return f.H
     end
 
     # invert resolvent and multiply by influence matrix, dropping the pressure drop
