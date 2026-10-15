@@ -6,25 +6,24 @@
 #
 # Sign convention: that of this package, a mode exp(i(mθ + k z + Ω t)) with
 # ∂_t -> +iΩ, where in the frame drifting at (cz, cθ) Ω = nω - cz k - cθ m. The
-# report writes exp(i(k_θθ + αk_z z) - iω_k t) instead, so Ω = -ω_k.
+# report writes exp(i(k_θθ + αk_z z - 2πk_t t/T)) with ∂_t -> -iω_k, so with
+# ω = 2π/T, n = -k_t and Ω = -ω_k.
 #
 # Unknowns stack (u_r, u_θ, u_z, p) on the radial grid r (wall at r[end] = 1, no
-# point on the axis), then the pressure drop β; ws are the weights of ∫ f r dr.
-# Axis regularity takes the parity of m for u_z and p and that of m + 1 for u_r
-# and u_θ (Lupi et al. 2024, section 3.1), so the radial derivative matrices are
-# supplied for both parities: `even = (Dr, Dr2)` mirrored with even and
-# `odd = (Dr, Dr2)` with odd parity at the axis.
+# point on the axis), then the pressure drop β, so that the total pressure is
+# P = p - β z; ws are the weights of ∫ f r dr. Axis regularity takes the parity
+# of m for u_z and p and that of m + 1 for u_r and u_θ (Lewis & Bellan 1990), so
+# the radial derivative matrices are supplied for both parities:
+# `even = (Dr, Dr2)` mirrored with even and `odd = (Dr, Dr2)` with odd parity at
+# the axis.
 #
 # The pressure drop enters only at (m, k) = (0, 0) with `constant_flux`, as the
 # multiplier of the constant-flux condition ∫ u_z r dr = 0, which takes the last
 # row; elsewhere its row and column are those of β = 0. At (m, k) = (0, 0) the
-# continuity equation gives u_r = 0 and the pressure enters only the radial
-# momentum equation, where it balances the radial forcing and is fixed only up
-# to a constant; it does not affect the velocity. That equation and the
-# pressure are therefore left out there, and the remaining system, the
-# azimuthal and axial momentum equations with the continuity equation, the
-# pressure drop and the flux condition, is solved; the pressure rows of H are
-# zero.
+# pressure enters only the radial momentum equation, so its additive constant is
+# free, and continuity with axis regularity gives u_r = 0, so u_r(1) = 0 holds
+# without being imposed. That wall row takes the pressure gauge ∫ p r dr = 0
+# instead, and the system is inverted as at every other (m, k).
 
 struct PipeResolvent{Nr}
     H::Matrix{ComplexF64}
@@ -95,19 +94,16 @@ function (f::PipeResolvent{Nr})(m, kz, Ω, U, dUdr, Re) where {Nr}
         f.H_inv[end, end] = 1.0
     end
 
-    # apply boundary conditions
-    f.H_inv[Nr,   :] .= 0.0; f.H_inv[Nr,   Nr]   = 1.0
+    # apply boundary conditions, with the pressure gauge in place of u_r(1) = 0
+    # at (m, k) = (0, 0)
+    f.H_inv[Nr,   :] .= 0.0
+    if m == 0 && kz == 0
+        f.H_inv[Nr, (3*Nr + 1):(4*Nr)] .= f.ws
+    else
+        f.H_inv[Nr, Nr] = 1.0
+    end
     f.H_inv[2*Nr, :] .= 0.0; f.H_inv[2*Nr, 2*Nr] = 1.0
     f.H_inv[3*Nr, :] .= 0.0; f.H_inv[3*Nr, 3*Nr] = 1.0
-
-    # at (m, k) = (0, 0) leave out the radial momentum equation and the pressure
-    if m == 0 && kz == 0
-        rows = (Nr + 1):(4*Nr + 1)
-        cols = [1:(3*Nr); 4*Nr + 1]
-        f.H[(3*Nr + 1):end, :] .= 0.0
-        mul!(view(f.H, 1:(3*Nr), :), view(inv(f.H_inv[rows, cols]), 1:(3*Nr), :), view(f.M, rows, :))
-        return f.H
-    end
 
     # invert resolvent and multiply by influence matrix, dropping the pressure drop
     mul!(f.H, view(inv(f.H_inv), 1:(4*Nr), :), f.M)
