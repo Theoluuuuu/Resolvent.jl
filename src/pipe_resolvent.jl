@@ -1,13 +1,17 @@
 # Definition of the function to compute the pipe-flow resolvent matrix at a
 # specific Fourier mode, in the structure of the channel `Resolvent`: the
-# velocity-pressure system with the wall rows replaced by boundary conditions,
-# inverted and multiplied by the influence matrix (9-month report, Section 3.3.2
-# and Appendix B).
+# velocity–total-pressure system with the momentum equations at the wall replaced
+# by the no-slip conditions (the radial one by the pressure gauge at
+# (m, k) = (0, 0)), inverted and multiplied by the influence matrix (9-month
+# report, Section 3.3.2 and Appendix B.2).
 #
-# Sign convention: that of this package, a mode exp(i(mθ + k z + Ω t)) with
-# ∂_t -> +iΩ, where in the frame drifting at (cz, cθ) Ω = nω - cz k - cθ m. The
-# report writes exp(i(k_θθ + αk_z z - 2πk_t t/T)) with ∂_t -> -iω_k, so with
-# ω = 2π/T, n = -k_t and Ω = -ω_k.
+# Sign convention: that of this package, a mode exp(i(mθ + kz z + Ω t)) with
+# ∂_t -> +iΩ, Ω being its frequency in the frame fixed to the pipe. For the
+# integer wavenumber k, kz = αk, and the frequency nω in the frame drifting at
+# (cz, cθ), Ω = nω - cz αk - cθ m. The report writes the mode as
+# exp(i(k_θθ' + αk_z z' - 2πk_t t/T)) in the drifting coordinates θ' = θ - cθ t,
+# z' = z - cz t (Section 3.3.2), i.e. exp(i(k_θθ + αk_z z - ω_k t)) in the frame
+# fixed to the pipe, so m = k_θ, k = k_z, ω = 2π/T, n = -k_t and Ω = -ω_k.
 #
 # Unknowns stack (u_r, u_θ, u_z, p) on the radial grid r (wall at r[end] = 1, no
 # point on the axis), then the pressure drop β, so that the total pressure is
@@ -18,7 +22,7 @@
 # the axis.
 #
 # The pressure drop enters only at (m, k) = (0, 0) with `constant_flux`, as the
-# multiplier of the constant-flux condition ∫ u_z r dr = 0, which takes the last
+# multiplier of the zero-flux condition ∫ u_z r dr = 0, which takes the last
 # row; elsewhere its row and column are those of β = 0. At (m, k) = (0, 0) the
 # pressure enters only the radial momentum equation, so its additive constant is
 # free, and continuity with axis regularity gives u_r = 0, so u_r(1) = 0 holds
@@ -86,7 +90,7 @@ function (f::PipeResolvent{Nr})(m, kz, Ω, U, dUdr, Re) where {Nr}
     f.H_inv[(3*Nr + 1):(4*Nr), (Nr + 1):(2*Nr)]   .= 1im.*m.*f.Rinv
     f.H_inv[(3*Nr + 1):(4*Nr), (2*Nr + 1):(3*Nr)] .= 1im.*kz.*f.id
 
-    # pressure drop and constant-flux condition at (m, k) = (0, 0), β = 0 elsewhere
+    # pressure drop and zero-flux condition at (m, k) = (0, 0), β = 0 elsewhere
     if f.constant_flux && m == 0 && kz == 0
         f.H_inv[(2*Nr + 1):(3*Nr), end] .= -1.0
         f.H_inv[end, (2*Nr + 1):(3*Nr)] .= f.ws
@@ -105,7 +109,9 @@ function (f::PipeResolvent{Nr})(m, kz, Ω, U, dUdr, Re) where {Nr}
     f.H_inv[2*Nr, :] .= 0.0; f.H_inv[2*Nr, 2*Nr] = 1.0
     f.H_inv[3*Nr, :] .= 0.0; f.H_inv[3*Nr, 3*Nr] = 1.0
 
-    # invert resolvent and multiply by influence matrix, dropping the pressure drop
+    # invert resolvent and multiply by influence matrix, dropping the pressure drop;
+    # as in Resolvent, H keeps the pressure rows, and svd(H, ws, nvals) uses only
+    # the velocity rows
     mul!(f.H, view(inv(f.H_inv), 1:(4*Nr), :), f.M)
 
     return f.H

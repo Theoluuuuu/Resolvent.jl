@@ -5,7 +5,8 @@
 # modes with nonzero singular values are kept (9-month report, Section 3.3.3);
 # they span the velocities that satisfy continuity and the wall and flux
 # conditions, 2N - 3 of them for a whole block and N - 2 for the smallest
-# subsystem kept by the symmetry, so M must not exceed that number.
+# subsystem kept by the symmetry (N radial points), so M must not exceed that
+# number.
 #
 # The resolvents of (m, k, n) and (-m, -k, -n) are complex conjugates. Only m ≥ 0
 # is stored, so at m = 0 the modes of (0, k, n) with k < 0, or k = 0 and n < 0,
@@ -66,7 +67,8 @@ function generate_pipe_modes!(Ψ::Array{Complex{T}, 5},
     M <= (shift_reflect ? N - 2 : 2*N - 3) || throw(ArgumentError("M = $M exceeds the number of nonzero singular values"))
 
     # the blocks whose modes come from a decomposition: at m = 0 the first of
-    # each conjugate pair and (0, 0, 0), and with the symmetry the same at m > 0
+    # each conjugate pair and (0, 0, 0); at m > 0 every block without the
+    # symmetry, and with it the first of each pair and (m, 0, 0)
     first_of_pair(nk, nn) = nk > 0 || (nk == 0 && nn > 0)
     decomposed(nm, nk, nn) = first_of_pair(nk, nn) || (nk == 0 && nn == 0) || (nm > 0 && !shift_reflect)
 
